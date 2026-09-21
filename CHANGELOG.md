@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Tests
+- Added structured adversarial outline fixtures for `glyf` cycles/depth/fan-out, truncated
+  coordinates and instructions, `gvar` tuple boundaries, invalid sfnt offsets, and CFF
+  subroutine nesting/call budgets; included deterministic callback-count assertions and a
+  targeted AFL outline corpus.
+
 ### Added
 - `alloc` build feature, for `no_std` builds with an allocator.
   `Name::to_string` and the `gvar-alloc` heap spill no longer require `std`.

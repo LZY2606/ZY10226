@@ -160,6 +160,11 @@ Build fixtures inline with the `convert(&[Unit...])` helper rather than committi
 font files; `tests/tables/cff1.rs` shows the pattern for something as involved as a full
 CFF font.
 
+Adversarial outline regressions use the same structured-builder approach: test names
+identify the parser limit, depth/fanout/point/instruction/tuple/subroutine/offset values
+remain explicit, and exact `OutlineBuilder` counts prove where work stopped. Tiny seeds for
+AFL are the exception and live only in `testing-tools/ttf-fuzz/corpus-outline/`. ~keep
+
 Two expectations:
 
 - **Assert exact values**, not truthiness. `assert_eq!(result, 42)`, not `assert!(result)`.

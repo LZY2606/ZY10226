@@ -14,6 +14,12 @@ cargo afl build
 
 ## Run
 
+Targeted regression fonts live in `corpus-outline/`. They cover component
+depth/visit limits, truncated `glyf` coordinates, the 32-tuple `gvar` stack
+boundary, and CFF subroutine nesting/call budgets. Structured table tests
+assert exact callback counts, so regressions are caught deterministically rather
+than relying on a fuzzer timeout.
+
 Before running, we have to collect some test data.
 Using raw fonts is too wasteful, so we are using the `strip-tables.py` script
 to remove unneeded tables.

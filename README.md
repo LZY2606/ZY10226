@@ -44,7 +44,8 @@ Requires Rust 1.88 and uses edition 2024.
 
 - The library must not panic. Any panic considered as a critical bug and should be reported.
 - The library forbids unsafe code.
-- No heap allocations, so crash due to OOM is not possible.
+- Parsing uses no heap allocations unless the optional `gvar-alloc` feature spills
+  tuple storage; core builds therefore cannot trigger an allocation failure.
 - All recursive methods have a depth limit, and the ones whose input forms a graph
   (composite glyphs, the COLRv1 paint graph, CFF subroutines) additionally bound the
   *total* work per call. A depth limit alone does not: with fan-out `b` and depth `d`,
