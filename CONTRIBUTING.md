@@ -155,12 +155,30 @@ Mark a comment that carries non-inferrable rationale with `~keep`.
 
 ## Writing tests
 
-Tests live in `tests/tables/`, one module per table, registered in `tests/tables/main.rs`.
-Build fixtures inline with the `convert(&[Unit...])` helper rather than committing binary
-font files; `tests/tables/cff1.rs` shows the pattern for something as involved as a full
-CFF font.
+Table-level tests live in `tests/tables/`, one module per table, registered in
+`tests/tables/main.rs`. Build fixtures inline with the `convert(&[Unit...])` helper rather
+than committing binary font files; `tests/tables/cff1.rs` shows the pattern for something as
+involved as a full CFF font.
 
-Two expectations:
+Structured *adversarial* tests for the bounded-outline guarantees live in the
+`tests/malicious_fonts.rs` integration test, with its constructors under
+`tests/malicious_fonts_support/` (sfnt/`glyf`/`gvar` and CFF1/CFF2 table builders). These
+tests construct minimal fonts from scratch — no network, clocks or directory traversal — and
+assert the structural outcome of feeding the parser a hostile glyph graph:
+
+- a malicious glyph returns `None` (or the documented `CFFError`) instead of hanging,
+  overflowing the stack or panicking;
+- a rejected glyph emits no callbacks describing unverified data, and every callback from an
+  accepted glyph stays inside the font's declared coordinate domain;
+- accepted work obeys a bound derived from the parsed input (points per leaf times accepted
+  component/subroutine visits), never from a wall-clock timeout.
+
+The limits themselves (`glyf::MAX_COMPONENTS`, `glyf::MAX_COMPONENT_VISITS`, CFF
+`STACK_LIMIT`/`MAX_SUBROUTINE_CALLS`, `gvar::MAX_STACK_TUPLES_LEN`) are private; the tests
+mirror them in named constants on purpose, so changing a limit forces an explicit, reviewed
+update of the tests that document its guaranteed behaviour.
+
+Two expectations apply to every test:
 
 - **Assert exact values**, not truthiness. `assert_eq!(result, 42)`, not `assert!(result)`.
 - **Verify the test fails without the fix.** Revert your change, watch the test go red, then
@@ -182,6 +200,13 @@ Most open work on this crate is hardening against malformed input. If you are ad
 - **Do not leak state between calls.** A budget must be a fresh local per public entry point.
   A counter that persists makes the API start failing spuriously after enough calls.
 - **Charge the budget before any early return**, or an attacker gets the cheap paths free.
+- **Prove the bound structurally.** A test that passes because a 400-billion-visit glyph
+  happens to return within ten seconds is really testing the build machine. Assert the return
+  value/error path, zero callbacks on rejection, and a callback ceiling computed from the
+  input (`budget * input_bytes` is the universal one); see
+  `tests/malicious_fonts_support/glyf_tests.rs` for the pattern. The same fixtures must give
+  the same bounded result with and without `variable-fonts`/`glyph-names` — gate the
+  feature-specific assertions, don't change the conclusion.
 
 ## Commit messages
 
@@ -224,3 +249,16 @@ both styles. New commits use the convention.
 The crate is fuzzed by OSS-Fuzz, whose targets are currently vendored in the `google/oss-fuzz`
 repository rather than here. See the open issue about OSS-Fuzz project ownership before
 investing effort in fuzzing infrastructure.
+
+A small **directed seed corpus** nevertheless lives at
+`testing-tools/ttf-fuzz/corpus/{outline,variable-outline}/`. The files are not consumed by a
+build (the legacy AFL harness is still unmaintained); they are the smallest fonts that reach
+each bounded path — component self-loops/two-node cycles, a shared-child fan-out diamond, CFF
+and CFF2 subroutine self-calls and a `gvar` fan-out diamond. They are generated from the
+constructors in `tests/malicious_fonts_support/` and self-checked by
+`corpus_tests::committed_corpus_fixtures_are_all_bounded`; regenerate after touching a
+constructor with:
+
+```text
+cargo test --test malicious_fonts regenerate_corpus -- --ignored
+```

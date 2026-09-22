@@ -49,6 +49,28 @@ Requires Rust 1.88 and uses edition 2024.
   (composite glyphs, the COLRv1 paint graph, CFF subroutines) additionally bound the
   *total* work per call. A depth limit alone does not: with fan-out `b` and depth `d`,
   a small font can force `b^d` visits without ever exceeding the depth.
+- The exact hardening budgets are named constants in the source:
+
+  | Bound | Value | What it stops |
+  |---|---|---|
+  | `glyf::MAX_COMPONENTS` | 32 | composite nesting depth (self-loops, cycles) |
+  | `glyf::MAX_COMPONENT_VISITS` | 100 000 | total component visits per outline, so shared-child fan-out and cycles are linear |
+  | CFF `STACK_LIMIT` | 10 | CFF/CFF2 subroutine nesting depth |
+  | CFF `MAX_SUBROUTINE_CALLS` | 4 096 | total subroutine invocations per glyph |
+  | `gvar::MAX_STACK_TUPLES_LEN` | 32 | variation tuples buffered on the stack (more require the opt-in `gvar-alloc` feature) |
+
+  Semantics: when a budget is exhausted the outline fails closed — `Face::outline_glyph` /
+  `Face::glyph_bounding_box` return `None`, and the low-level CFF tables report
+  `CFFError::NestingLimitReached` or `CFFError::SubroutineCallLimitReached` (collapsed to
+  `None` by the high-level API). Callbacks already emitted for fully verified sub-trees are
+  retained; no callback can describe coordinates outside the font's declared domain.
+  Complexity is therefore `O(budget)` work and `O(depth)` stack per call, independent of how
+  the input graph is shaped. Compatibility trade-off: a font deliberately engineered past
+  these limits (not observed in real corpora) outlines as `None` rather than consuming
+  unbounded CPU; this is the intended maintenance-mode behaviour and is not a public-API
+  change. The structured fixtures proving all of this live in
+  `tests/malicious_fonts.rs`; a small directed fuzz seed corpus lives in
+  `testing-tools/ttf-fuzz/corpus/`.
 - Stack usage is bounded, but not tightly: outlining a composite variable glyph nests up to
   32 frames, each holding a variation-tuple buffer, for roughly 80KiB in the worst case.
 - Most of arithmetic operations are checked.

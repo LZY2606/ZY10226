@@ -20,6 +20,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - (`CFF`) `cff::Table::parse_with_upem`, which applies the font matrix using the face's
   units per em. `cff::Table::parse` keeps its original one-argument signature.
   Thanks to [LaurenzV](https://github.com/LaurenzV).
+- A structured adversarial-font test suite in `tests/malicious_fonts.rs` that constructs
+  minimal sfnt/`glyf`/`gvar` and CFF1/CFF2 fonts and proves the bounded-outline guarantees
+  structurally (return value/error path, zero callbacks on rejection, and an input-derived
+  callback ceiling) instead of relying on a fuzzing wall-clock timeout. It covers component
+  self-loops, two-node cycles, depth-at-the-limit and one-level-over chains, shared-child
+  fan-out, out-of-range component references, truncated coordinates/instructions, `gvar`
+  tuple-count boundaries, and CFF/CFF2 subroutine cycles and fan-out, with conclusions
+  identical across the `variable-fonts`/`glyph-names`/`gvar-alloc` feature combinations.
+  A matching directed seed corpus is committed under `testing-tools/ttf-fuzz/corpus/`.
+  No public behaviour changes.
 - (`OS/2`) `os2::Table::panose`, returning the ten raw PANOSE digits plus `FamilyType`
   and `is_bold`/`is_italic`/`is_monospaced`. The digits are public because their meaning
   depends on the family type and PANOSE defines more values than this crate models.
